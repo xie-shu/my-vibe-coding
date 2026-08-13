@@ -33,4 +33,8 @@ frontend/.playwright-cli/
 *.md
 !README.md
 !DEPLOY_GITHUB_PAGES.md
+!DEMO_SCRIPT.md
+!PORTFOLIO_CASE.md
+!SUBMISSION_CHECKLIST.md
+!TEST_CASES.md
 docs/
