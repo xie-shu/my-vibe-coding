@@ -17,7 +17,7 @@ GitHub Pages 只能托管静态前端，不能安全保存大模型 API Key。�
 
 1. 在 GitHub 创建一个新仓库，例如：
 
-   `my-vibe-coding`
+   `ai-pm-growth-cockpit`
 
 2. 在本地项目根目录执行：
 
@@ -26,7 +26,7 @@ GitHub Pages 只能托管静态前端，不能安全保存大模型 API Key。�
    git add .
    git commit -m "Deploy AI PM growth cockpit"
    git branch -M main
-   git remote add origin https://github.com/xie-shu/my-vibe-coding.git
+   git remote add origin https://github.com/xie-shu/ai-pm-growth-cockpit.git
    git push -u origin main
    ```
 
@@ -40,13 +40,13 @@ GitHub Pages 只能托管静态前端，不能安全保存大模型 API Key。�
 
 5. 等待 Actions 跑完后，访问：
 
-   `https://xie-shu.github.io/my-vibe-coding/`
+   `https://xie-shu.github.io/ai-pm-growth-cockpit/`
 
 ## 本地构建检查
 
 ```bash
 cd frontend
-VITE_BASE_PATH=/my-vibe-coding/ VITE_DEMO_MODE=true VITE_CHAT_MODEL_MODE=demo npm run build
+VITE_BASE_PATH=/ai-pm-growth-cockpit/ VITE_DEMO_MODE=true VITE_CHAT_MODEL_MODE=demo npm run build
 ```
 
 ## 移动端适配

@@ -6,8 +6,8 @@
 
 ## 在线预览
 
-- GitHub Pages：[https://xie-shu.github.io/my-vibe-coding/](https://xie-shu.github.io/my-vibe-coding/)
-- 仓库地址：[https://github.com/xie-shu/my-vibe-coding](https://github.com/xie-shu/my-vibe-coding)
+- GitHub Pages：[https://xie-shu.github.io/ai-pm-growth-cockpit/](https://xie-shu.github.io/ai-pm-growth-cockpit/)
+- 仓库地址：[https://github.com/xie-shu/ai-pm-growth-cockpit](https://github.com/xie-shu/ai-pm-growth-cockpit)
 
 说明：GitHub Pages 是纯前端静态部署，默认使用 Demo 模式，不会在前端暴露大模型 API Key。真实 GPT 问答、ASR、内容抓取等能力建议通过本地或云端后端服务接入。
 
@@ -75,7 +75,7 @@ http://127.0.0.1:5173/
 
 ```bash
 cd frontend
-VITE_BASE_PATH=/my-vibe-coding/ VITE_DEMO_MODE=true VITE_CHAT_MODEL_MODE=demo npm run build
+VITE_BASE_PATH=/ai-pm-growth-cockpit/ VITE_DEMO_MODE=true VITE_CHAT_MODEL_MODE=demo npm run build
 ```
 
 ## V1.0 功能边界

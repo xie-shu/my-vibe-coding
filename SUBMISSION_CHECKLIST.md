@@ -26,7 +26,7 @@
 ## 4. 部署检查
 
 - [x] GitHub Actions workflow 已配置；
-- [x] Vite base path 支持 `/my-vibe-coding/`；
+- [x] Vite base path 支持 `/ai-pm-growth-cockpit/`；
 - [x] 路由支持 GitHub Pages 静态刷新；
 - [ ] GitHub Actions Pages 部署为绿色通过；
 - [ ] Settings → Pages 显示线上地址。
