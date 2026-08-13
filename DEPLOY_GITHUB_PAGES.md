@@ -1,6 +1,6 @@
 # GitHub Pages 部署说明
 
-本仓库支持把 `frontend` 作为静态作品集部署到 GitHub Pages。
+本仓库支持把 `frontend` 作为 AI PM 产品思维学习助手静态作品集部署到 GitHub Pages。
 
 ## 部署模式
 
