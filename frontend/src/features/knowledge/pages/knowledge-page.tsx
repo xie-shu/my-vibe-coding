@@ -29,7 +29,7 @@ import type { SearchResult, KnowledgeDocument } from '@/types'
 
 export default function KnowledgePage() {
   const [activeTab, setActiveTab] = useState<'search' | 'documents'>('search')
-  const [activeLibrary, setActiveLibrary] = useState<'uploaded' | 'practice'>('practice')
+  const [activeLibrary, setActiveLibrary] = useState<'uploaded' | 'practice' | 'interview'>('practice')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -46,7 +46,8 @@ export default function KnowledgePage() {
   const hotDocuments = (documents || []).filter((doc) => doc.source_type === 'radar_item')
   const uploadedDocuments = (documents || []).filter((doc) => doc.source_type === 'uploaded_doc')
   const practiceDocuments = (documents || []).filter((doc) => ['practice_record', 'reference_answer'].includes(doc.source_type))
-  const visibleDocuments = activeLibrary === 'uploaded' ? uploadedDocuments : practiceDocuments
+  const interviewDocuments = (documents || []).filter((doc) => doc.source_type === 'interview_record')
+  const visibleDocuments = activeLibrary === 'uploaded' ? uploadedDocuments : activeLibrary === 'interview' ? interviewDocuments : practiceDocuments
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -295,11 +296,16 @@ export default function KnowledgePage() {
       {/* 文档管理 */}
       {activeTab === 'documents' && (
         <div className="space-y-3">
-          <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div className="mb-4 grid gap-3 md:grid-cols-3">
             <button type="button" onClick={() => setActiveLibrary('practice')} className={`glass-card soft-reveal rounded-2xl border p-4 text-left transition ${activeLibrary === 'practice' ? 'border-primary bg-primary/10' : 'bg-card hover:bg-muted/60'}`}>
               <p className="text-sm font-semibold">练习复盘库</p>
               <p className="mt-1 text-xs text-muted-foreground">存放每天的面试题、你的回答、AI 点评、改进建议、正确答案和答案解析。</p>
               <p className="mt-3 text-2xl font-semibold">{practiceDocuments.length}</p>
+            </button>
+            <button type="button" onClick={() => setActiveLibrary('interview')} className={`glass-card soft-reveal soft-reveal-delay-1 rounded-2xl border p-4 text-left transition ${activeLibrary === 'interview' ? 'border-primary bg-primary/10' : 'bg-card hover:bg-muted/60'}`}>
+              <p className="text-sm font-semibold">面试复盘库</p>
+              <p className="mt-1 text-xs text-muted-foreground">存放面试音频转写、面试官问题、我的回答、AI 分析和更好的参考答案。</p>
+              <p className="mt-3 text-2xl font-semibold">{interviewDocuments.length}</p>
             </button>
             <button type="button" onClick={() => setActiveLibrary('uploaded')} className={`glass-card soft-reveal soft-reveal-delay-1 rounded-2xl border p-4 text-left transition ${activeLibrary === 'uploaded' ? 'border-primary bg-primary/10' : 'bg-card hover:bg-muted/60'}`}>
               <p className="text-sm font-semibold">上传资料库</p>
@@ -326,8 +332,8 @@ export default function KnowledgePage() {
           ) : (
             <div className="glass-card soft-reveal flex min-h-40 flex-col items-center justify-center py-8 text-muted-foreground">
               <Database className="h-12 w-12 opacity-30" />
-              <p className="mt-3 text-sm">{activeLibrary === 'uploaded' ? '上传资料库为空' : '练习复盘库为空'}</p>
-              <p className="mt-1 text-xs">{activeLibrary === 'uploaded' ? '上传 AI 产品资料、PRD 或课程笔记后会显示在这里' : '完成每日训练后，题目、点评、正确答案和解析会自动入库'}</p>
+              <p className="mt-3 text-sm">{activeLibrary === 'uploaded' ? '上传资料库为空' : activeLibrary === 'interview' ? '面试复盘库为空' : '练习复盘库为空'}</p>
+              <p className="mt-1 text-xs">{activeLibrary === 'uploaded' ? '上传 AI 产品资料、PRD 或课程笔记后会显示在这里' : activeLibrary === 'interview' ? '上传面试音频后，逐字稿、问题分析和参考答案会自动入库' : '完成每日训练后，题目、点评、正确答案和解析会自动入库'}</p>
             </div>
           )}
         </div>
@@ -474,6 +480,7 @@ function getSourceTypeLabel(sourceType: string) {
   if (sourceType === 'meeting_summary') return '历史纪要'
   if (sourceType === 'radar_item') return 'AI 雷达'
   if (sourceType === 'practice_record') return '练习复盘'
+  if (sourceType === 'interview_record') return '面试复盘'
   if (sourceType === 'reference_answer') return '参考答案'
   return '上传资料'
 }

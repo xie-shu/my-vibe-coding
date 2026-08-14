@@ -40,6 +40,8 @@ export const QUERY_KEYS = {
   practiceAnswers: ['growth', 'practices'] as const,
   practiceAnswer: (id: string) => ['growth', 'practice', id] as const,
   radarItems: (tag: string) => ['growth', 'radar', tag] as const,
+  interviewRecords: ['growth', 'interviews'] as const,
+  interviewRecord: (id: string) => ['growth', 'interview', id] as const,
 } as const
 
 export const APP_TITLE = 'AI 成长舱'

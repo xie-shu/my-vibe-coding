@@ -8,6 +8,7 @@ const routeTitles: Record<string, string> = {
   '/': '今日成长',
   '/practice': '每日训练',
   '/practices': '练习记录',
+  '/interviews': '面试库',
   '/radar': 'AI 产品雷达',
   '/chat': '成长问答',
   '/knowledge': '个人知识库',

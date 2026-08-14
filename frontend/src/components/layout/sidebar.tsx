@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   BookOpen,
+  FileAudio,
   PanelLeftClose,
   PanelLeft,
   Radar,
@@ -16,6 +17,7 @@ import { APP_TITLE } from '@/lib/constants'
 const navItems = [
   { to: '/', label: '今日成长', icon: LayoutDashboard },
   { to: '/practices', label: '练习记录', icon: Target },
+  { to: '/interviews', label: '面试库', icon: FileAudio },
   { to: '/radar', label: 'AI 产品雷达', icon: Radar },
   { to: '/chat', label: '成长问答', icon: MessageSquare },
   { to: '/knowledge', label: '个人知识库', icon: BookOpen },

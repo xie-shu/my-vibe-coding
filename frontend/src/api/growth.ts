@@ -1,11 +1,14 @@
 import { apiClient } from './client'
-import type { DailyQuestion, GrowthToday, PracticeAnswer, RadarItem } from '@/types'
+import type { DailyQuestion, GrowthToday, InterviewRecord, PracticeAnswer, RadarItem } from '@/types'
 import {
   IS_DEMO_MODE,
+  demoAnalyzeInterviewAudio,
   demoGetDailyQuestion,
   demoGetGrowthToday,
+  demoGetInterviewRecord,
   demoGetPracticeAnswer,
   demoListDailyQuestions,
+  demoListInterviewRecords,
   demoListPracticeAnswers,
   demoListRadarItems,
   demoSaveRadarItemToKnowledge,
@@ -58,4 +61,21 @@ export async function listRadarItems(tag?: string): Promise<RadarItem[]> {
 export async function saveRadarItemToKnowledge(id: string): Promise<RadarItem> {
   if (IS_DEMO_MODE) return demoSaveRadarItemToKnowledge(id)
   return apiClient.post(`growth/radar/${id}/save-to-knowledge`).json()
+}
+
+export async function listInterviewRecords(): Promise<InterviewRecord[]> {
+  if (IS_DEMO_MODE) return demoListInterviewRecords()
+  return apiClient.get('growth/interviews').json()
+}
+
+export async function getInterviewRecord(id: string): Promise<InterviewRecord> {
+  if (IS_DEMO_MODE) return demoGetInterviewRecord(id)
+  return apiClient.get(`growth/interviews/${id}`).json()
+}
+
+export async function analyzeInterviewAudio(file: File): Promise<InterviewRecord> {
+  if (IS_DEMO_MODE) return demoAnalyzeInterviewAudio(file)
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiClient.post('growth/interviews/analyze-audio', { body: formData }).json()
 }

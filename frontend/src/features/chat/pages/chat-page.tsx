@@ -37,10 +37,16 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
 const CHAT_MODEL_MODE = import.meta.env.VITE_CHAT_MODEL_MODE || 'real'
 
 const buildGrowthContext = () => {
-  const growthState = localStorage.getItem('growth-workbench-demo-state-v2')
+  const growthState =
+    localStorage.getItem('growth-workbench-demo-state-v9-daily-interview') ||
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('growth-workbench-demo-state-'))
+      .sort()
+      .map((key) => localStorage.getItem(key))
+      .find(Boolean)
   return [
     '当前产品是 AI 成长舱：面向 AI 产品经理求职与日常成长的个人工作台。',
-    '核心功能包括：每日产品思维训练、语音/文字作答、AI 点评、AI 产品雷达、个人知识库、练习复盘库、成长问答。',
+    '核心功能包括：每日产品思维训练、语音/文字作答、AI 点评、AI 产品雷达、面试音频复盘、个人知识库、练习复盘库、成长问答。',
     growthState ? `本地训练题、练习记录与 AI 雷达示例 JSON：${growthState.slice(0, 6000)}` : '',
   ].filter(Boolean).join('\n\n')
 }
