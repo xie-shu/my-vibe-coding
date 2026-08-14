@@ -1,13 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  analyzeInterviewAudio,
-  analyzeInterviewTranscript,
   getDailyQuestion,
   getGrowthToday,
-  getInterviewRecord,
   getPracticeAnswer,
   listDailyQuestions,
-  listInterviewRecords,
   listPracticeAnswers,
   listRadarItems,
   saveRadarItemToKnowledge,
@@ -84,45 +80,6 @@ export function useSaveRadarItemToKnowledge() {
     mutationFn: saveRadarItemToKnowledge,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.growth] })
-      queryClient.invalidateQueries({ queryKey: ['knowledge-documents'] })
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.knowledge] })
-    },
-  })
-}
-
-export function useInterviewRecords() {
-  return useQuery({
-    queryKey: QUERY_KEYS.interviewRecords,
-    queryFn: listInterviewRecords,
-  })
-}
-
-export function useInterviewRecord(id?: string) {
-  return useQuery({
-    queryKey: QUERY_KEYS.interviewRecord(id || ''),
-    queryFn: () => getInterviewRecord(id!),
-    enabled: !!id,
-  })
-}
-
-export function useAnalyzeInterviewAudio() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: analyzeInterviewAudio,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interviewRecords })
-      queryClient.invalidateQueries({ queryKey: ['knowledge-documents'] })
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.knowledge] })
-    },
-  })
-}
-
-export function useAnalyzeInterviewTranscript() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: analyzeInterviewTranscript,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interviewRecords })
       queryClient.invalidateQueries({ queryKey: ['knowledge-documents'] })
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.knowledge] })
     },

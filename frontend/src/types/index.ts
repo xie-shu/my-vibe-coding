@@ -112,7 +112,7 @@ export interface ChatMessage {
 export interface KnowledgeDocument {
   id: string
   title: string
-  source_type: 'meeting_summary' | 'uploaded_doc' | 'radar_item' | 'practice_record' | 'reference_answer' | 'interview_record'
+  source_type: 'meeting_summary' | 'uploaded_doc' | 'radar_item' | 'practice_record' | 'reference_answer'
   source_id?: string
   content: string
   metadata?: Record<string, unknown>
@@ -151,37 +151,6 @@ export interface PracticeAnswer {
   weaknesses: string[]
   suggestions: string[]
   reference_answer: string
-  created_at: string
-}
-
-// 面试音频复盘
-export interface InterviewTurn {
-  id: string
-  speaker: 'interviewer' | 'me'
-  speaker_label: string
-  content: string
-  start_time: number
-  end_time: number
-}
-
-export interface InterviewRecord {
-  id: string
-  title: string
-  source_file_name?: string
-  duration_seconds: number
-  transcript: InterviewTurn[]
-  questions: Array<{
-    id: string
-    question: string
-    answer: string
-    analysis: string
-    improved_answer: string
-    score: number
-  }>
-  overall_score: number
-  strengths: string[]
-  weaknesses: string[]
-  suggestions: string[]
   created_at: string
 }
 

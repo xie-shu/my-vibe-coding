@@ -6,8 +6,6 @@ import type {
   DailyQuestion,
   DecisionDetail,
   GrowthToday,
-  InterviewRecord,
-  InterviewTurn,
   KnowledgeDocument,
   Meeting,
   PracticeAnswer,
@@ -21,8 +19,8 @@ export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false'
 export const DEMO_MEETING_ID = 'meeting-ai-pm-practice'
 export const DEMO_DECISION_ID = 'decision-ai-pm-mvp'
 
-const STORAGE_KEY = 'growth-workbench-core-state-v2-interview'
-const GROWTH_STORAGE_KEY = 'growth-workbench-demo-state-v9-daily-interview'
+const STORAGE_KEY = 'growth-workbench-core-state-v3-focus'
+const GROWTH_STORAGE_KEY = 'growth-workbench-demo-state-v10-daily-focus'
 const CREATED_AT = '2026-08-13T06:00:00.000Z'
 
 interface DemoState {
@@ -42,7 +40,6 @@ interface GrowthState {
   questions: DailyQuestion[]
   practices: PracticeAnswer[]
   radarItems: RadarItem[]
-  interviews: InterviewRecord[]
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
@@ -255,24 +252,6 @@ const githubRadarItems: RadarItem[] = [
     created_at: '2026-08-14T08:30:00.000Z',
     saved_to_knowledge: false,
   },
-  {
-    id: 'radar-github-whisperx',
-    title: 'WhisperX：面试音频复盘需要 ASR、时间戳和说话人分离',
-    source_name: 'GitHub · m-bain/whisperX',
-    source_url: 'https://github.com/m-bain/whisperX',
-    summary:
-      'WhisperX 代表了带时间戳和说话人分离的音频转写方向，可用于解释面试音频如何区分面试官和候选人。',
-    full_content: `面试音频复盘和普通语音输入不一样。普通语音输入只需要把“我说的话”转成文字；面试复盘需要区分面试官问题和候选人回答，否则 AI 很难判断每个回答是否答到了问题。
-
-一个完整链路通常包括：上传音频、ASR 转写、说话人分离、角色映射、按问答轮次切分、对候选人回答评分、生成更好的参考回答，并把结果沉淀到面试库。
-
-V1.0 可以先做 Demo 演示和产品流程，真实上线时再接后端 ASR + diarization 服务。面试表达上要强调“不把转写结果直接当事实”，用户需要能校对说话人和文本。`,
-    pm_insight:
-      '面试音频功能的关键不是“能转文字”，而是能形成问答轮次，并允许用户校对说话人、问题和答案。',
-    tags: ['ASR', '面试复盘', 'AI PM'],
-    created_at: '2026-08-14T08:40:00.000Z',
-    saved_to_knowledge: false,
-  },
 ]
 
 const questions: DailyQuestion[] = [
@@ -322,21 +301,6 @@ const questions: DailyQuestion[] = [
     created_at: '2026-08-12T08:00:00.000Z',
   },
   {
-    id: 'question-interview-audio-review',
-    title: '如果你要做“面试音频复盘”功能，MVP 应该怎么设计？',
-    background: '用户上传一段模拟面试或真实面试录音，希望系统区分面试官和候选人，识别问题与回答，并给出回答质量分析和更好的参考答案。',
-    ability_tags: ['ASR', '说话人分离', '面试复盘', 'AI 产品边界'],
-    source_ids: ['radar-github-whisperx', 'knowledge-ai-pm-method'],
-    suggested_structure: ['先区分普通语音输入和面试音频复盘', '设计上传-转写-角色识别-问答切分-评分复盘链路', '说明用户可编辑校对机制', '给出准确率和复盘采纳率指标'],
-    scoring_guide: {
-      structure: ['是否讲清输入到输出的完整流程', '是否区分面试官问题和候选人回答', '是否说明人工校对入口'],
-      product_thinking: ['是否考虑 ASR 错误和说话人识别错误', '是否能把音频转写转化为面试能力提升', '是否设计沉淀到面试库'],
-      expression: ['是否避免只讲技术名词', '是否能清楚说明 MVP 边界', '是否能形成面试可复用表达'],
-    },
-    status: 'new',
-    created_at: '2026-08-14T08:00:00.000Z',
-  },
-  {
     id: 'question-rag-evaluation',
     title: '如何评估一个知识库问答助手回答得好不好？',
     background: '你的 AI PM 成长助手可以基于资料库和练习复盘回答问题，但需要证明它不是泛泛回答，而是真的命中了用户资料。',
@@ -372,74 +336,6 @@ const practices: PracticeAnswer[] = [
   },
 ]
 
-const interviewRecords: InterviewRecord[] = [
-  {
-    id: 'interview-ai-pm-demo',
-    title: 'AI 产品经理模拟面试：RAG 产品价值',
-    source_file_name: 'AI_PM_mock_interview.wav',
-    duration_seconds: 382,
-    transcript: [
-      {
-        id: 'turn-demo-1',
-        speaker: 'interviewer',
-        speaker_label: '面试官',
-        content: '你做的这个 AI PM 成长助手为什么需要知识库和 RAG，直接接一个大模型不可以吗？',
-        start_time: 4,
-        end_time: 16,
-      },
-      {
-        id: 'turn-demo-2',
-        speaker: 'me',
-        speaker_label: '我',
-        content: '我觉得需要 RAG，因为用户有自己的练习记录和资料库，直接问大模型会比较泛。接知识库以后可以结合我的历史回答、参考答案和 AI 热点资料来回答。',
-        start_time: 18,
-        end_time: 46,
-      },
-      {
-        id: 'turn-demo-3',
-        speaker: 'interviewer',
-        speaker_label: '面试官',
-        content: '那你怎么判断这个问答助手回答得好不好？',
-        start_time: 51,
-        end_time: 59,
-      },
-      {
-        id: 'turn-demo-4',
-        speaker: 'me',
-        speaker_label: '我',
-        content: '可以看回答有没有引用到正确资料，用户是否采纳建议，还有回答是否覆盖了问题中的关键点。后续也可以加点赞点踩。',
-        start_time: 60,
-        end_time: 82,
-      },
-    ],
-    questions: [
-      {
-        id: 'iq-demo-1',
-        question: '为什么需要知识库和 RAG，直接接一个大模型不可以吗？',
-        answer: '我觉得需要 RAG，因为用户有自己的练习记录和资料库，直接问大模型会比较泛。接知识库以后可以结合我的历史回答、参考答案和 AI 热点资料来回答。',
-        analysis: '回答抓住了“个人资料”和“泛化回答”的差异，但还可以补充可追溯、降低幻觉、更新资料和用户校对机制。',
-        improved_answer:
-          '直接问大模型能解决通用问题，但这个产品的核心价值是围绕用户自己的资料和练习历史做个性化复盘。RAG 可以把 AI 热点、上传资料和历史练习作为上下文，让回答更贴近用户真实准备过程，并通过引用来源提高可信度。产品指标上可以看资料命中率、引用准确率、回答采纳率和复练提升幅度。',
-        score: 82,
-      },
-      {
-        id: 'iq-demo-2',
-        question: '你怎么判断这个问答助手回答得好不好？',
-        answer: '可以看回答有没有引用到正确资料，用户是否采纳建议，还有回答是否覆盖了问题中的关键点。后续也可以加点赞点踩。',
-        analysis: '有指标意识，但指标还可以分层：检索质量、生成质量、用户反馈和长期效果。',
-        improved_answer:
-          '我会分三层评估：第一是检索层，看是否召回了正确资料、引用是否准确；第二是生成层，看回答是否完整、忠实于资料、结构是否清楚；第三是用户效果层，看用户是否采纳建议、是否继续追问、下一次练习得分是否提升。失败样例会进入 badcase，用来优化提示词、检索策略和资料治理。',
-        score: 78,
-      },
-    ],
-    overall_score: 80,
-    strengths: ['能把技术能力和个人成长场景连接起来', '有意识提到资料命中和用户反馈', '回答比较自然，不像背稿'],
-    weaknesses: ['指标体系还可以更分层', '对 ASR/检索/生成错误的兜底说得不够', '参考案例可以更具体'],
-    suggestions: ['回答 AI 功能质量时按“检索-生成-反馈-长期效果”四层展开', '遇到技术问题先翻译成用户价值，再讲指标', '每个回答最后补一句 V1.0 边界和后续迭代'],
-    created_at: '2026-08-14T09:00:00.000Z',
-  },
-]
-
 function buildPracticeReviewContent(question: DailyQuestion, practice: PracticeAnswer) {
   return [
     `题目：${question.title}`,
@@ -466,37 +362,10 @@ function buildPracticeReviewContent(question: DailyQuestion, practice: PracticeA
   ].join('\n')
 }
 
-function buildInterviewReviewContent(interview: InterviewRecord) {
-  return [
-    `面试：${interview.title}`,
-    '',
-    `音频文件：${interview.source_file_name || '未记录'}`,
-    `整体评分：${interview.overall_score}`,
-    '',
-    `逐字稿（已区分面试官 / 我）：`,
-    interview.transcript.map((turn) => `[${Math.round(turn.start_time)}s] ${turn.speaker_label}：${turn.content}`).join('\n'),
-    '',
-    `问题与回答分析：`,
-    interview.questions
-      .map(
-        (item, index) =>
-          `${index + 1}. ${item.question}\n我的回答：${item.answer}\n分析：${item.analysis}\n更好的回答：${item.improved_answer}\n单题评分：${item.score}`,
-      )
-      .join('\n\n'),
-    '',
-    `整体优点：\n${interview.strengths.map((item) => `- ${item}`).join('\n')}`,
-    '',
-    `主要不足：\n${interview.weaknesses.map((item) => `- ${item}`).join('\n')}`,
-    '',
-    `改进建议：\n${interview.suggestions.map((item) => `- ${item}`).join('\n')}`,
-  ].join('\n')
-}
-
 const defaultGrowthState: GrowthState = {
   questions,
   practices,
   radarItems: githubRadarItems,
-  interviews: interviewRecords,
 }
 
 function buildKnowledgeDocuments(): KnowledgeDocument[] {
@@ -523,20 +392,9 @@ function buildKnowledgeDocuments(): KnowledgeDocument[] {
     }
   })
 
-  const interviewDocs: KnowledgeDocument[] = interviewRecords.map((interview) => ({
-    id: `knowledge-${interview.id}`,
-    title: `面试复盘：${interview.title}`,
-    source_type: 'interview_record',
-    source_id: interview.id,
-    content: buildInterviewReviewContent(interview),
-    metadata: { tags: ['面试复盘', 'ASR', '表达训练'], file_name: interview.source_file_name },
-    created_at: interview.created_at,
-  }))
-
   return [
     ...radarDocs,
     ...practiceDocs,
-    ...interviewDocs,
     {
       id: 'knowledge-ai-pm-method',
       title: 'AI 产品经理面试表达框架',
@@ -1134,213 +992,6 @@ export async function demoListRadarItems(tag?: string) {
   return clone(items.filter((item) => item.tags.includes(tag)))
 }
 
-export async function demoListInterviewRecords() {
-  await pause()
-  return clone(readGrowthState().interviews)
-}
-
-export async function demoGetInterviewRecord(id: string) {
-  await pause()
-  const interview = readGrowthState().interviews.find((item) => item.id === id)
-  if (!interview) throw new Error('面试复盘不存在')
-  return clone(interview)
-}
-
-export async function demoAnalyzeInterviewAudio(file: File) {
-  for (const ms of [180, 240, 260]) await pause(ms)
-  const growth = readGrowthState()
-  const state = readState()
-  const now = new Date().toISOString()
-  const baseTitle = file.name.replace(/\.[^.]+$/, '') || 'AI PM 面试音频'
-  const interview: InterviewRecord = {
-    id: `interview-${crypto.randomUUID()}`,
-    title: `${baseTitle} · 面试复盘`,
-    source_file_name: file.name,
-    duration_seconds: Math.max(240, Math.round((file.size || 800000) / 4200)),
-    transcript: [
-      {
-        id: `turn-${crypto.randomUUID()}`,
-        speaker: 'interviewer',
-        speaker_label: '面试官',
-        content: '请你介绍一下这个 AI PM 产品思维学习助手，它解决了什么问题？',
-        start_time: 6,
-        end_time: 18,
-      },
-      {
-        id: `turn-${crypto.randomUUID()}`,
-        speaker: 'me',
-        speaker_label: '我',
-        content: '这个产品面向准备 AI 产品经理面试的人，解决资料分散、缺少持续练习和回答无法复盘的问题。核心功能是每日产品思维练习、AI 点评、热点资料库和知识库问答。',
-        start_time: 19,
-        end_time: 48,
-      },
-      {
-        id: `turn-${crypto.randomUUID()}`,
-        speaker: 'interviewer',
-        speaker_label: '面试官',
-        content: '如果要继续优化 AI 问答助手，你会优先做什么？',
-        start_time: 55,
-        end_time: 66,
-      },
-      {
-        id: `turn-${crypto.randomUUID()}`,
-        speaker: 'me',
-        speaker_label: '我',
-        content: '我会优先优化上下文记忆和复杂问题理解，让它能结合用户历史练习连续追问。其次增加点赞点踩和文字反馈，把 badcase 沉淀下来优化检索和回答质量。',
-        start_time: 67,
-        end_time: 96,
-      },
-    ],
-    questions: [
-      {
-        id: `iq-${crypto.randomUUID()}`,
-        question: '请你介绍一下这个 AI PM 产品思维学习助手，它解决了什么问题？',
-        answer: '这个产品面向准备 AI 产品经理面试的人，解决资料分散、缺少持续练习和回答无法复盘的问题。核心功能是每日产品思维练习、AI 点评、热点资料库和知识库问答。',
-        analysis: '回答能讲清目标用户、痛点和核心功能，适合作为开场介绍。但还可以补一句产品差异化：它不是普通题库，而是从资料输入到表达输出的成长闭环。',
-        improved_answer:
-          '这个产品面向准备 AI 产品经理面试的学生和转岗候选人，解决的是“资料看了很多，但很难转化成结构化表达”的问题。它用每日产品思维练习、AI 评分、热点资料库、练习复盘库和知识库问答，形成从学习输入到面试表达输出的闭环。相比普通题库，它更强调持续训练、即时反馈和可追溯复盘。',
-        score: 84,
-      },
-      {
-        id: `iq-${crypto.randomUUID()}`,
-        question: '如果要继续优化 AI 问答助手，你会优先做什么？',
-        answer: '我会优先优化上下文记忆和复杂问题理解，让它能结合用户历史练习连续追问。其次增加点赞点踩和文字反馈，把 badcase 沉淀下来优化检索和回答质量。',
-        analysis: '方向正确，覆盖了上下文记忆、复杂问题理解和反馈闭环。可以再补充评估指标，例如多轮追问成功率、引用准确率、反馈采纳率。',
-        improved_answer:
-          '我会优先做 V1.1 的上下文记忆和复杂问题理解，让助手能识别用户一次问多个问题、指代不清或需要结合历史练习的场景；同时增加澄清追问机制。评估上看多轮问题命中率、历史练习引用准确率和用户继续追问率。下一步再做点赞点踩和文字反馈，把低质量回答沉淀成 badcase，用来优化检索、提示词和答案结构。',
-        score: 86,
-      },
-    ],
-    overall_score: 85,
-    strengths: ['开场能明确目标用户和问题', '能把 AI 问答优化拆到上下文、复杂问题和反馈闭环', '表达比较流畅，适合面试现场'],
-    weaknesses: ['回答里指标还不够具体', '差异化可以再尖锐一点', '可以补充 ASR/大模型识别不准时的人工校对机制'],
-    suggestions: ['每个回答最后补一组评估指标', '介绍产品时强调“不是题库，是成长闭环”', '讲音频复盘时主动说明说话人识别需要用户可编辑确认'],
-    created_at: now,
-  }
-  growth.interviews.unshift(interview)
-  writeGrowthState(growth)
-  state.knowledgeDocuments.unshift({
-    id: `knowledge-${interview.id}`,
-    title: `面试复盘：${interview.title}`,
-    source_type: 'interview_record',
-    source_id: interview.id,
-    content: buildInterviewReviewContent(interview),
-    metadata: { tags: ['面试复盘', 'ASR', '表达训练'], file_name: file.name },
-    created_at: now,
-  })
-  writeState(state)
-  return clone(interview)
-}
-
-function parseFeishuTranscript(rawText: string): InterviewTurn[] {
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const turns: InterviewTurn[] = []
-  let seq = 0
-  for (const line of lines) {
-    const cleaned = line.replace(/^\[[^\]]+\]\s*/, '')
-    const match =
-      cleaned.match(/^(?:(\d{1,2}:\d{2}(?::\d{2})?)\s*)?([^:：]{1,18})[:：]\s*(.+)$/) ||
-      cleaned.match(/^([^:：\s]{1,18})\s+(?:\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)$/)
-    const speakerRaw = match ? (match[2] || match[1] || '').trim() : ''
-    const content = match ? (match[3] || match[2] || '').trim() : cleaned
-    const speakerHint = speakerRaw || (seq % 2 === 0 ? '面试官' : '我')
-    const isInterviewer = /面试官|interviewer|hr|老师|对方|招聘|leader|主管/i.test(speakerHint) || (!/我|候选人|本人|应聘|面试者/i.test(speakerHint) && /[？?]$/.test(content))
-    const speaker = isInterviewer ? 'interviewer' : 'me'
-    turns.push({
-      id: `turn-${crypto.randomUUID()}`,
-      speaker,
-      speaker_label: speaker === 'interviewer' ? '面试官' : '我',
-      content,
-      start_time: seq * 18,
-      end_time: seq * 18 + Math.max(8, Math.min(38, Math.round(content.length / 2))),
-    })
-    seq += 1
-  }
-  if (turns.length >= 2) return turns
-  return [
-    {
-      id: `turn-${crypto.randomUUID()}`,
-      speaker: 'interviewer',
-      speaker_label: '面试官',
-      content: '请你介绍一下这个 AI PM 产品思维学习助手，它解决了什么问题？',
-      start_time: 0,
-      end_time: 12,
-    },
-    {
-      id: `turn-${crypto.randomUUID()}`,
-      speaker: 'me',
-      speaker_label: '我',
-      content: rawText.slice(0, 260) || '这个产品面向准备 AI 产品经理面试的人，解决资料分散、缺少练习反馈和无法复盘的问题。',
-      start_time: 13,
-      end_time: 45,
-    },
-  ]
-}
-
-function buildQuestionsFromTurns(turns: InterviewTurn[]): InterviewRecord['questions'] {
-  const questions: InterviewRecord['questions'] = []
-  for (let index = 0; index < turns.length; index += 1) {
-    const turn = turns[index]
-    if (turn.speaker !== 'interviewer') continue
-    const answerTurn = turns.slice(index + 1).find((item) => item.speaker === 'me')
-    if (!answerTurn) continue
-    const answer = answerTurn.content
-    const hasMetric = /指标|完成率|转化|留存|准确|召回|采纳|得分|满意/.test(answer)
-    const hasBoundary = /边界|风险|兜底|人工|校对|确认|失败|不准/.test(answer)
-    const score = 76 + (hasMetric ? 6 : 0) + (hasBoundary ? 6 : 0) + Math.min(8, Math.round(answer.length / 80))
-    questions.push({
-      id: `iq-${crypto.randomUUID()}`,
-      question: turn.content,
-      answer,
-      analysis: `回答已经覆盖了问题主干${hasMetric ? '，并提到了指标' : '，但指标设计还可以更具体'}${hasBoundary ? '，也有边界意识' : '，还需要补充 ASR、大模型或产品流程出错时的兜底方案'}。`,
-      improved_answer:
-        '我会先明确目标用户和核心场景，再讲当前方案为什么能解决问题；如果涉及 AI 能力，会补充数据来源、模型边界、人工校对和效果指标。最后用一个可验证的指标闭环收束，比如问题命中率、引用准确率、用户采纳率或复练提升幅度。',
-      score: Math.min(92, score),
-    })
-  }
-  return questions.slice(0, 6)
-}
-
-export async function demoAnalyzeInterviewTranscript(file: File) {
-  await pause(700)
-  const rawText = await file.text()
-  const growth = readGrowthState()
-  const state = readState()
-  const now = new Date().toISOString()
-  const transcript = parseFeishuTranscript(rawText)
-  const questions = buildQuestionsFromTurns(transcript)
-  const overall = questions.length ? Math.round(questions.reduce((sum, item) => sum + item.score, 0) / questions.length) : 78
-  const interview: InterviewRecord = {
-    id: `interview-${crypto.randomUUID()}`,
-    title: `${file.name.replace(/\.[^.]+$/, '')} · 飞书妙记复盘`,
-    source_file_name: file.name,
-    duration_seconds: transcript.at(-1)?.end_time || Math.max(120, transcript.length * 20),
-    transcript,
-    questions: questions.length ? questions : buildQuestionsFromTurns(parseFeishuTranscript(rawText)),
-    overall_score: overall,
-    strengths: ['能从飞书妙记转写文本快速形成面试复盘', '回答内容已经按问题拆分，便于逐题优化', '复盘结果会进入知识库，后续可被问答助手引用'],
-    weaknesses: ['说话人角色仍建议人工校对一次', '部分回答还需要补充指标、边界和例子', '如果原始转写质量差，问题切分可能需要手动修正'],
-    suggestions: ['导出飞书妙记后先检查说话人名称是否清楚', '每个回答按“结论-原因-方案-指标-边界”补全', '把高频薄弱问题加入每日产品思维练习题池'],
-    created_at: now,
-  }
-  growth.interviews.unshift(interview)
-  writeGrowthState(growth)
-  state.knowledgeDocuments.unshift({
-    id: `knowledge-${interview.id}`,
-    title: `面试复盘：${interview.title}`,
-    source_type: 'interview_record',
-    source_id: interview.id,
-    content: buildInterviewReviewContent(interview),
-    metadata: { tags: ['飞书妙记', '面试复盘', '表达训练'], file_name: file.name },
-    created_at: now,
-  })
-  writeState(state)
-  return clone(interview)
-}
-
 export async function demoSaveRadarItemToKnowledge(id: string) {
   await pause()
   const growth = readGrowthState()
@@ -1395,15 +1046,11 @@ function buildDemoAnswer(query: string) {
   const growth = readGrowthState()
   const todayQuestion = rotateByToday(growth.questions)[0]
   const latestPractice = growth.practices[0]
-  const latestInterview = growth.interviews[0]
   if (/今天|今日|题目|考察|练习/.test(query)) {
     return `今天的产品思维训练题是《${todayQuestion.title}》。\n\n背景：${todayQuestion.background}\n\n考察能力：${todayQuestion.ability_tags.join('、')}。\n\n建议你按这个结构回答：\n${todayQuestion.suggested_structure.map((item, index) => `${index + 1}. ${item}`).join('\n')}\n\n回答时不要只讲功能清单，要补充 AI 能力边界、效果指标和风险兜底。`
   }
   if (/上次|最近.*回答|哪里不好|薄弱|复盘|得分/.test(query) && latestPractice) {
     return `你最近一次练习得分是 ${latestPractice.score} 分。\n\n优点：\n${latestPractice.strengths.map((item) => `- ${item}`).join('\n')}\n\n需要优化：\n${latestPractice.weaknesses.map((item) => `- ${item}`).join('\n')}\n\n下一次建议重点练“复杂问题拆解”：先拆用户、场景和目标，再讲 AI 能力、数据来源、指标和风险边界。`
-  }
-  if (/面试|音频|面试官|转写|说话人|逐字稿/.test(query) && latestInterview) {
-    return `你最近一次面试复盘是《${latestInterview.title}》，整体得分 ${latestInterview.overall_score} 分。\n\n系统已把逐字稿区分为“面试官 / 我”，并按问答轮次做分析。\n\n主要优点：\n${latestInterview.strengths.map((item) => `- ${item}`).join('\n')}\n\n需要优化：\n${latestInterview.weaknesses.map((item) => `- ${item}`).join('\n')}\n\n下一步建议：\n${latestInterview.suggestions.map((item) => `- ${item}`).join('\n')}\n\nV1.0 Demo 模式展示的是产品流程；真实上线需要后端 ASR + 说话人分离，并允许你人工校对角色和转写文本。`
   }
   if (/GitHub|趋势|前沿|资讯|动态|雷达|热点|开源|产品更新/.test(query)) {
     return `今天 AI 产品雷达暂时改用 GitHub 资料源，重点看这些方向：\n\n1. OpenAI Cookbook：把 RAG、函数调用、评估等技术能力转成产品方案。\n2. LangGraph：用状态图组织 Agent 工作流，强调可控执行和人工确认。\n3. LlamaIndex：说明知识库问答的关键是资料治理、检索质量和引用可追溯。\n4. MCP：体现 AI 助手连接外部工具和数据源的标准化趋势。\n\n面试表达可以总结为：AI 产品竞争不只是模型参数，而是能否把能力包装成可控、可追溯、能持续改进的用户任务闭环。`
@@ -1435,7 +1082,7 @@ function buildChatSources(query: string) {
   }
   return [
     { source_id: 'knowledge-ai-pm-method', title: 'AI 产品经理面试表达框架', source_type: 'uploaded_doc', route: 'knowledge' as const, rank: 1, score: 0.94 },
-    { source_id: /面试|音频|面试官|转写|说话人|逐字稿/.test(query) ? 'knowledge-interview-ai-pm-demo' : 'knowledge-practice-ai-pm-onboarding', title: /面试|音频|面试官|转写|说话人|逐字稿/.test(query) ? '面试复盘：AI 产品经理模拟面试' : '练习复盘：AI 面试助手 MVP 如何设计', source_type: /面试|音频|面试官|转写|说话人|逐字稿/.test(query) ? 'interview_record' : 'practice_record', route: 'knowledge' as const, rank: 2, score: 0.88 },
+    { source_id: 'knowledge-practice-ai-pm-onboarding', title: '练习复盘：AI 面试助手 MVP 如何设计', source_type: 'practice_record', route: 'knowledge' as const, rank: 2, score: 0.88 },
   ]
 }
 

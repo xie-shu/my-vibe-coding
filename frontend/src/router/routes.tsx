@@ -8,7 +8,6 @@ const TodayPage = lazy(() => import('@/features/growth/pages/today-page'))
 const PracticePage = lazy(() => import('@/features/growth/pages/practice-page'))
 const RadarPage = lazy(() => import('@/features/growth/pages/radar-page'))
 const PracticeHistoryPage = lazy(() => import('@/features/growth/pages/practice-history-page'))
-const InterviewLibraryPage = lazy(() => import('@/features/growth/pages/interview-library-page'))
 const MeetingDetailPage = lazy(() => import('@/features/meetings/pages/meeting-detail-page'))
 const SummaryListPage = lazy(() => import('@/features/summaries/pages/summary-list-page'))
 const SummaryDetailPage = lazy(() => import('@/features/summaries/pages/summary-detail-page'))
@@ -44,10 +43,6 @@ export const routes: RouteObject[] = [
       {
         path: 'practices/:id',
         element: <PracticeHistoryPage />,
-      },
-      {
-        path: 'interviews',
-        element: <InterviewLibraryPage />,
       },
       {
         path: 'meetings',
