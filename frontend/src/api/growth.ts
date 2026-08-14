@@ -3,6 +3,7 @@ import type { DailyQuestion, GrowthToday, InterviewRecord, PracticeAnswer, Radar
 import {
   IS_DEMO_MODE,
   demoAnalyzeInterviewAudio,
+  demoAnalyzeInterviewTranscript,
   demoGetDailyQuestion,
   demoGetGrowthToday,
   demoGetInterviewRecord,
@@ -78,4 +79,11 @@ export async function analyzeInterviewAudio(file: File): Promise<InterviewRecord
   const formData = new FormData()
   formData.append('file', file)
   return apiClient.post('growth/interviews/analyze-audio', { body: formData }).json()
+}
+
+export async function analyzeInterviewTranscript(file: File): Promise<InterviewRecord> {
+  if (IS_DEMO_MODE) return demoAnalyzeInterviewTranscript(file)
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiClient.post('growth/interviews/analyze-transcript', { body: formData }).json()
 }

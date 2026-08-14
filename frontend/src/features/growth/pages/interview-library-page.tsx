@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Bot, CalendarDays, FileAudio, Loader2, MessageSquareQuote, Mic2, Upload } from 'lucide-react'
+import { Bot, CalendarDays, FileAudio, FileText, Loader2, MessageSquareQuote, Mic2, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTime } from '@/lib/utils'
 import type { InterviewRecord } from '@/types'
-import { useAnalyzeInterviewAudio, useInterviewRecords } from '../hooks/use-growth'
+import { useAnalyzeInterviewAudio, useAnalyzeInterviewTranscript, useInterviewRecords } from '../hooks/use-growth'
 
 export default function InterviewLibraryPage() {
   const { data: interviews, isLoading } = useInterviewRecords()
   const analyze = useAnalyzeInterviewAudio()
+  const analyzeTranscript = useAnalyzeInterviewTranscript()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const selected = interviews?.find((item) => item.id === selectedId) || interviews?.[0]
@@ -32,6 +33,20 @@ export default function InterviewLibraryPage() {
     event.target.value = ''
   }
 
+  const handleTranscriptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setMessage(null)
+    try {
+      const record = await analyzeTranscript.mutateAsync(file)
+      setSelectedId(record.id)
+      setMessage(`「${file.name}」已按飞书妙记文本导入，并生成面试复盘`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '飞书妙记文本解析失败，请检查文件格式')
+    }
+    event.target.value = ''
+  }
+
   if (isLoading) {
     return <div className="mx-auto max-w-[1480px] space-y-4"><Skeleton className="h-40" /><Skeleton className="h-96" /></div>
   }
@@ -49,11 +64,18 @@ export default function InterviewLibraryPage() {
               上传模拟面试或真实面试音频，系统会先转写并区分“面试官 / 我”，再按问题分析回答质量，生成更好的参考答案并沉淀到面试库。
             </p>
           </div>
-          <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition hover:bg-primary/90">
-            <input className="hidden" type="file" accept="audio/*,.mp3,.wav,.m4a,.webm" onChange={handleUpload} disabled={analyze.isPending} />
-            {analyze.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {analyze.isPending ? '分析音频中...' : '上传面试音频'}
-          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition hover:bg-primary/90">
+              <input className="hidden" type="file" accept=".txt,.md,.srt,.vtt" onChange={handleTranscriptUpload} disabled={analyzeTranscript.isPending} />
+              {analyzeTranscript.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {analyzeTranscript.isPending ? '解析妙记中...' : '上传飞书妙记文本'}
+            </label>
+            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border bg-card/70 px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-muted">
+              <input className="hidden" type="file" accept="audio/*,.mp3,.wav,.m4a,.webm" onChange={handleUpload} disabled={analyze.isPending} />
+              {analyze.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {analyze.isPending ? '分析音频中...' : '上传音频 Demo'}
+            </label>
+          </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <Stat icon={<FileAudio className="h-4 w-4" />} label="面试复盘" value={`${interviews?.length || 0}`} />
@@ -61,7 +83,7 @@ export default function InterviewLibraryPage() {
           <Stat icon={<CalendarDays className="h-4 w-4" />} label="最近复盘" value={interviews?.[0] ? formatDateTime(interviews[0].created_at).slice(5) : '暂无'} />
         </div>
         <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs leading-5 text-amber-800">
-          V1.0 Demo 模式使用模拟 ASR 与说话人分离结果，用于展示产品流程；真实上线需要后端接入 ASR + diarization 服务，并提供说话人和转写文本的人工校对。
+          推荐 V1.0 使用“飞书妙记转写文本导入”：先在飞书妙记完成转写，再上传 TXT/MD 到这里做面试复盘。音频直传目前是 Demo 流程；真实上线需要后端接入 ASR + diarization 服务，并提供说话人和转写文本的人工校对。
         </p>
         {message && <p className="mt-3 rounded-xl border bg-card/70 px-4 py-2 text-sm text-muted-foreground">{message}</p>}
       </section>

@@ -7,6 +7,7 @@ import type {
   DecisionDetail,
   GrowthToday,
   InterviewRecord,
+  InterviewTurn,
   KnowledgeDocument,
   Meeting,
   PracticeAnswer,
@@ -1225,6 +1226,115 @@ export async function demoAnalyzeInterviewAudio(file: File) {
     source_id: interview.id,
     content: buildInterviewReviewContent(interview),
     metadata: { tags: ['面试复盘', 'ASR', '表达训练'], file_name: file.name },
+    created_at: now,
+  })
+  writeState(state)
+  return clone(interview)
+}
+
+function parseFeishuTranscript(rawText: string): InterviewTurn[] {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const turns: InterviewTurn[] = []
+  let seq = 0
+  for (const line of lines) {
+    const cleaned = line.replace(/^\[[^\]]+\]\s*/, '')
+    const match =
+      cleaned.match(/^(?:(\d{1,2}:\d{2}(?::\d{2})?)\s*)?([^:：]{1,18})[:：]\s*(.+)$/) ||
+      cleaned.match(/^([^:：\s]{1,18})\s+(?:\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)$/)
+    const speakerRaw = match ? (match[2] || match[1] || '').trim() : ''
+    const content = match ? (match[3] || match[2] || '').trim() : cleaned
+    const speakerHint = speakerRaw || (seq % 2 === 0 ? '面试官' : '我')
+    const isInterviewer = /面试官|interviewer|hr|老师|对方|招聘|leader|主管/i.test(speakerHint) || (!/我|候选人|本人|应聘|面试者/i.test(speakerHint) && /[？?]$/.test(content))
+    const speaker = isInterviewer ? 'interviewer' : 'me'
+    turns.push({
+      id: `turn-${crypto.randomUUID()}`,
+      speaker,
+      speaker_label: speaker === 'interviewer' ? '面试官' : '我',
+      content,
+      start_time: seq * 18,
+      end_time: seq * 18 + Math.max(8, Math.min(38, Math.round(content.length / 2))),
+    })
+    seq += 1
+  }
+  if (turns.length >= 2) return turns
+  return [
+    {
+      id: `turn-${crypto.randomUUID()}`,
+      speaker: 'interviewer',
+      speaker_label: '面试官',
+      content: '请你介绍一下这个 AI PM 产品思维学习助手，它解决了什么问题？',
+      start_time: 0,
+      end_time: 12,
+    },
+    {
+      id: `turn-${crypto.randomUUID()}`,
+      speaker: 'me',
+      speaker_label: '我',
+      content: rawText.slice(0, 260) || '这个产品面向准备 AI 产品经理面试的人，解决资料分散、缺少练习反馈和无法复盘的问题。',
+      start_time: 13,
+      end_time: 45,
+    },
+  ]
+}
+
+function buildQuestionsFromTurns(turns: InterviewTurn[]): InterviewRecord['questions'] {
+  const questions: InterviewRecord['questions'] = []
+  for (let index = 0; index < turns.length; index += 1) {
+    const turn = turns[index]
+    if (turn.speaker !== 'interviewer') continue
+    const answerTurn = turns.slice(index + 1).find((item) => item.speaker === 'me')
+    if (!answerTurn) continue
+    const answer = answerTurn.content
+    const hasMetric = /指标|完成率|转化|留存|准确|召回|采纳|得分|满意/.test(answer)
+    const hasBoundary = /边界|风险|兜底|人工|校对|确认|失败|不准/.test(answer)
+    const score = 76 + (hasMetric ? 6 : 0) + (hasBoundary ? 6 : 0) + Math.min(8, Math.round(answer.length / 80))
+    questions.push({
+      id: `iq-${crypto.randomUUID()}`,
+      question: turn.content,
+      answer,
+      analysis: `回答已经覆盖了问题主干${hasMetric ? '，并提到了指标' : '，但指标设计还可以更具体'}${hasBoundary ? '，也有边界意识' : '，还需要补充 ASR、大模型或产品流程出错时的兜底方案'}。`,
+      improved_answer:
+        '我会先明确目标用户和核心场景，再讲当前方案为什么能解决问题；如果涉及 AI 能力，会补充数据来源、模型边界、人工校对和效果指标。最后用一个可验证的指标闭环收束，比如问题命中率、引用准确率、用户采纳率或复练提升幅度。',
+      score: Math.min(92, score),
+    })
+  }
+  return questions.slice(0, 6)
+}
+
+export async function demoAnalyzeInterviewTranscript(file: File) {
+  await pause(700)
+  const rawText = await file.text()
+  const growth = readGrowthState()
+  const state = readState()
+  const now = new Date().toISOString()
+  const transcript = parseFeishuTranscript(rawText)
+  const questions = buildQuestionsFromTurns(transcript)
+  const overall = questions.length ? Math.round(questions.reduce((sum, item) => sum + item.score, 0) / questions.length) : 78
+  const interview: InterviewRecord = {
+    id: `interview-${crypto.randomUUID()}`,
+    title: `${file.name.replace(/\.[^.]+$/, '')} · 飞书妙记复盘`,
+    source_file_name: file.name,
+    duration_seconds: transcript.at(-1)?.end_time || Math.max(120, transcript.length * 20),
+    transcript,
+    questions: questions.length ? questions : buildQuestionsFromTurns(parseFeishuTranscript(rawText)),
+    overall_score: overall,
+    strengths: ['能从飞书妙记转写文本快速形成面试复盘', '回答内容已经按问题拆分，便于逐题优化', '复盘结果会进入知识库，后续可被问答助手引用'],
+    weaknesses: ['说话人角色仍建议人工校对一次', '部分回答还需要补充指标、边界和例子', '如果原始转写质量差，问题切分可能需要手动修正'],
+    suggestions: ['导出飞书妙记后先检查说话人名称是否清楚', '每个回答按“结论-原因-方案-指标-边界”补全', '把高频薄弱问题加入每日产品思维练习题池'],
+    created_at: now,
+  }
+  growth.interviews.unshift(interview)
+  writeGrowthState(growth)
+  state.knowledgeDocuments.unshift({
+    id: `knowledge-${interview.id}`,
+    title: `面试复盘：${interview.title}`,
+    source_type: 'interview_record',
+    source_id: interview.id,
+    content: buildInterviewReviewContent(interview),
+    metadata: { tags: ['飞书妙记', '面试复盘', '表达训练'], file_name: file.name },
     created_at: now,
   })
   writeState(state)
