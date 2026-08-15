@@ -1046,6 +1046,15 @@ function buildDemoAnswer(query: string) {
   const growth = readGrowthState()
   const todayQuestion = rotateByToday(growth.questions)[0]
   const latestPractice = growth.practices[0]
+  if (/^(你好|您好|hello|hi|哈喽|在吗)[！!。.\s]*$/i.test(query.trim())) {
+    return '你好呀，我是 AI 成长舱里的产品思维学习助手。你可以问我今天的练习题、上次练习哪里需要改进、AI 产品趋势、RAG/Agent 怎么讲，或者让我帮你整理一段面试表达。'
+  }
+  if (/(天气|气温|下雨|降雨|空气质量|台风|温度|几度|穿什么|实时天气|今天天气|明天天气)/.test(query)) {
+    return '这个问题我现在不能直接回答。当前问答助手没有接入天气查询工具，也没有可检索的实时天气知识库，所以不能判断今天的天气。你可以换成问我“今天的产品思维练习是什么”或“最近 AI 产品趋势有哪些”。'
+  }
+  if (/(股票|股价|汇率|航班|火车票|高铁票|实时新闻|彩票|油价|限行)/.test(query)) {
+    return '这个问题需要实时外部数据或专门工具支持。当前工作台只接入了个人知识库、练习复盘和 AI 产品资料，不具备这类实时查询能力，所以我不能编造答案。'
+  }
   if (/今天|今日|题目|考察|练习/.test(query)) {
     return `今天的产品思维训练题是《${todayQuestion.title}》。\n\n背景：${todayQuestion.background}\n\n考察能力：${todayQuestion.ability_tags.join('、')}。\n\n建议你按这个结构回答：\n${todayQuestion.suggested_structure.map((item, index) => `${index + 1}. ${item}`).join('\n')}\n\n回答时不要只讲功能清单，要补充 AI 能力边界、效果指标和风险兜底。`
   }
@@ -1064,10 +1073,22 @@ function buildDemoAnswer(query: string) {
   if (/面试官|怎么回答|怎么介绍|AI产品经理|AI PM/.test(query)) {
     return '面试表达建议按“场景痛点-产品方案-AI 能力-边界兜底-指标验证”展开。介绍这个工作台时，可以说：我发现 AI 产品经理面试准备的问题不是缺资料，而是缺持续练习和即时反馈，所以做了每日产品题、语音/文字作答、AI 点评、AI 产品雷达和个人知识库问答，形成从学习输入到表达输出的闭环。'
   }
-  return `我暂时没有找到与“${query}”直接匹配的个人资料。你可以问：“今天的题目考察什么能力”“我上次回答哪里不好”“GitHub 上有哪些 AI 产品趋势”“为什么这个产品需要 RAG”“三个子 Agent 怎么协作”。`
+  if (/用户画像/.test(query)) {
+    return '用户画像是对目标用户群体的结构化描述，通常包括用户特征、场景、目标、痛点和行为。产品设计时，用户画像不是简单罗列年龄职业，而是帮助团队明确“谁在什么场景下，为什么需要这个产品”。'
+  }
+  if (/\bMVP\b|最小可行产品|产品经理是做什么/.test(query)) {
+    return 'MVP 是用最小成本验证核心价值的产品版本。它不是功能越少越好，而是优先保留能验证关键假设的闭环，例如本工作台 V1.0 先验证“每日练习题—回答—AI 点评—历史复盘”是否能帮助用户持续训练。'
+  }
+  return `这个问题不需要检索个人知识库，我可以直接基于通用知识回答。当前 Demo 只内置了部分产品经理学习场景示例；如果你接入真实 GPT，它会继续回答这类通用问题。涉及天气、股价等实时信息时，仍需要对应工具才能查询。`
 }
 
 function buildChatSources(query: string) {
+  if (
+    /^(你好|您好|hello|hi|哈喽|在吗)[！!。.\s]*$/i.test(query.trim()) ||
+    /(天气|气温|下雨|降雨|空气质量|台风|温度|几度|穿什么|实时天气|今天天气|明天天气|股票|股价|汇率|航班|火车票|高铁票|实时新闻|彩票|油价|限行)/.test(query)
+  ) {
+    return []
+  }
   if (/GitHub|趋势|前沿|资讯|动态|雷达|热点|开源|产品更新/.test(query)) {
     return [
       { source_id: 'knowledge-radar-github-openai-cookbook', title: 'OpenAI Cookbook：RAG 与评估案例', source_type: 'radar_item', route: 'knowledge' as const, rank: 1, score: 0.95 },
@@ -1080,10 +1101,7 @@ function buildChatSources(query: string) {
       { source_id: 'knowledge-radar-github-llamaindex', title: 'LlamaIndex：知识库问答资料治理', source_type: 'radar_item', route: 'knowledge' as const, rank: 2, score: 0.9 },
     ]
   }
-  return [
-    { source_id: 'knowledge-ai-pm-method', title: 'AI 产品经理面试表达框架', source_type: 'uploaded_doc', route: 'knowledge' as const, rank: 1, score: 0.94 },
-    { source_id: 'knowledge-practice-ai-pm-onboarding', title: '练习复盘：AI 面试助手 MVP 如何设计', source_type: 'practice_record', route: 'knowledge' as const, rank: 2, score: 0.88 },
-  ]
+  return []
 }
 
 export function demoSaveRealChatExchange(sessionId: string, query: string, answer: string) {
