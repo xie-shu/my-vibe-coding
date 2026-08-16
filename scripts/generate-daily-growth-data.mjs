@@ -43,6 +43,13 @@ async function githubJson(url) {
   return response.json()
 }
 
+const completionUrls = (baseUrl) => {
+  const normalized = baseUrl.replace(/\/$/, '')
+  const urls = [`${normalized}/chat/completions`]
+  if (!/\/v1$/i.test(normalized)) urls.push(`${normalized}/v1/chat/completions`)
+  return urls
+}
+
 const pickTags = (repoName, description = '') => {
   const text = `${repoName} ${description}`.toLowerCase()
   const tags = ['AI 产品']
@@ -87,7 +94,7 @@ async function generateQuestionWithLLM(radarItems) {
 ${radarItems.slice(0, 4).map((item, index) => `${index + 1}. ${item.title}\n摘要：${item.summary}\nPM视角：${item.pm_insight}`).join('\n\n')}`
 
   try {
-    const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+    const requestOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,8 +108,16 @@ ${radarItems.slice(0, 4).map((item, index) => `${index + 1}. ${item.title}\n摘�
           { role: 'user', content: prompt },
         ],
       }),
-    })
-    if (!response.ok) throw new Error(`LLM request failed ${response.status}`)
+    }
+    let response = null
+    let lastError = null
+    for (const url of completionUrls(OPENAI_BASE_URL)) {
+      response = await fetch(url, requestOptions)
+      if (response.ok) break
+      lastError = new Error(`LLM request failed ${response.status}`)
+      if (response.status !== 404) break
+    }
+    if (!response?.ok) throw lastError || new Error('LLM request failed')
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content || ''
     const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/```$/i, '').trim())
