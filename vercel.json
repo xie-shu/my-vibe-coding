@@ -1,0 +1,15 @@
+{
+  "installCommand": "cd frontend && npm ci",
+  "buildCommand": "node scripts/generate-daily-growth-data.mjs && cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

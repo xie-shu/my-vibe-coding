@@ -104,8 +104,42 @@ export interface ChatMessage {
       score?: number
       snippet?: string
     }>
+    generation_mode?: 'model' | 'data_fallback'
+    trace?: Array<{
+      step: 'intent_route' | 'data_retrieval' | 'answer_generation'
+      status: 'succeeded' | 'fallback'
+      detail: string
+    }>
   }
   created_at: string
+}
+
+export type ChatDataIntent =
+  | 'daily_question'
+  | 'practice_review'
+  | 'radar_query'
+  | 'knowledge_query'
+  | 'external_tool'
+  | 'general_chat'
+
+export interface ChatRetrievalEvidence {
+  intent: ChatDataIntent
+  query: string
+  fallback_answer: string
+  sources: NonNullable<NonNullable<ChatMessage['metadata']>['sources']>
+  evidence: Array<{
+    id: string
+    title: string
+    source_type: string
+    content: string
+    score: number
+    created_at?: string
+  }>
+  trace: Array<{
+    step: 'intent_route' | 'data_retrieval' | 'answer_generation'
+    status: 'succeeded' | 'fallback'
+    detail: string
+  }>
 }
 
 // 知识文档

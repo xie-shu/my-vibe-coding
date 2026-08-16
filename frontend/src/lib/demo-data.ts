@@ -2,6 +2,7 @@ import type {
   ActionItem,
   AgentRun,
   ChatMessage,
+  ChatRetrievalEvidence,
   ChatSession,
   DailyQuestion,
   DecisionDetail,
@@ -1090,6 +1091,140 @@ export async function demoDeleteSession(sessionId: string) {
   writeState(state)
 }
 
+const retrievalStopWords = new Set(['今天', '今日', '最近', '一下', '什么', '怎么', '如何', '哪些', '这个', '那个', '我的', '你的', '情况', '告诉', '可以', '产品'])
+
+function retrievalTerms(value: string) {
+  const normalized = value.toLowerCase()
+  const terms = normalized.match(/[a-z0-9][a-z0-9+.#-]*|[\u4e00-\u9fff]{2,}/g) || []
+  const expanded = new Set<string>()
+  for (const term of terms) {
+    if (/^[\u4e00-\u9fff]+$/.test(term) && term.length > 3) {
+      for (let size = 2; size <= Math.min(4, term.length); size += 1) {
+        for (let index = 0; index <= term.length - size; index += 1) expanded.add(term.slice(index, index + size))
+      }
+    } else {
+      expanded.add(term)
+    }
+  }
+  return [...expanded].filter((term) => term.length > 1 && !retrievalStopWords.has(term))
+}
+
+function retrievalScore(query: string, title: string, content: string) {
+  const terms = retrievalTerms(query)
+  const normalizedTitle = title.toLowerCase()
+  const normalizedContent = content.toLowerCase()
+  const score = terms.reduce((sum, term) => {
+    return sum + (normalizedTitle.includes(term) ? 4 : 0) + (normalizedContent.includes(term) ? 1 : 0)
+  }, 0)
+  return score + (normalizedTitle.includes(query.toLowerCase().trim()) ? 8 : 0)
+}
+
+function routeChatIntent(query: string): ChatRetrievalEvidence['intent'] {
+  if (/(天气|气温|股票|股价|汇率|航班|火车票|高铁票|实时新闻|油价|限行)/.test(query)) return 'external_tool'
+  if (/(上次|最近|历史).*(回答|练习|得分|评分|不足|问题|复盘)|我.*(回答|练习).*(怎么样|哪里|得分|评分)/.test(query)) return 'practice_review'
+  if (/(今天|今日|当天).*(题目|练习|考察)|练习题.*(是什么|情况|考察)/.test(query)) return 'daily_question'
+  if (/(热点|趋势|动态|雷达|资讯|前沿|GitHub|开源|产品更新)/i.test(query)) return 'radar_query'
+  if (/(知识库|资料库|资料|文档|RAG|Agent|大模型|AI 产品|产品经理|MVP|Prompt|评估|指标)/i.test(query)) return 'knowledge_query'
+  return 'general_chat'
+}
+
+export async function demoRetrieveChatEvidence(query: string): Promise<ChatRetrievalEvidence> {
+  const intent = routeChatIntent(query)
+  const state = readState()
+  const growth = readGrowthState()
+  const generated = await loadGeneratedGrowthData()
+  const generatedQuestions = generated ? (generated.questions?.length ? generated.questions : [generated.question]) : []
+  const currentQuestion = generated?.question ?? rotateByToday(growth.questions)[0]
+  const radarItems = [...(generated?.radar_items || []), ...growth.radarItems]
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index)
+  const questions = [...generatedQuestions, ...growth.questions]
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index)
+  const practices = [...growth.practices].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+
+  const candidates: ChatRetrievalEvidence['evidence'] = []
+  if (intent === 'daily_question') {
+    candidates.push({
+      id: currentQuestion.id,
+      title: currentQuestion.title,
+      source_type: 'daily_question',
+      content: `题目背景：${currentQuestion.background}\n考察能力：${currentQuestion.ability_tags.join('、')}\n推荐结构：${currentQuestion.suggested_structure.join('；')}`,
+      score: 100,
+      created_at: currentQuestion.created_at,
+    })
+  } else if (intent === 'practice_review') {
+    const ranked = practices.map((practice, index) => {
+      const question = questions.find((item) => item.id === practice.question_id)
+      const content = `我的回答：${practice.answer_text}\n综合得分：${practice.score}\n结构：${practice.structure_score}\n产品思维：${practice.product_thinking_score}\n表达：${practice.expression_score}\n优点：${practice.strengths.join('；')}\n不足：${practice.weaknesses.join('；')}\n建议：${practice.suggestions.join('；')}\n参考答案：${practice.reference_answer}`
+      return {
+        id: practice.id,
+        title: `练习复盘：${question?.title || practice.question_id}`,
+        source_type: 'practice_record',
+        content,
+        score: /上次|最近/.test(query) ? 100 - index : retrievalScore(query, question?.title || '', content),
+        created_at: practice.created_at,
+      }
+    })
+    candidates.push(...ranked.sort((a, b) => b.score - a.score).slice(0, 3))
+  } else if (intent === 'radar_query') {
+    const todayItems = generated?.radar_items?.length ? generated.radar_items : radarItems
+    candidates.push(...todayItems.map((item, index) => ({
+      id: item.id,
+      title: item.title,
+      source_type: 'radar_item',
+      content: `${item.summary}\n${item.pm_insight}\n来源：${item.source_name}\n${item.full_content || ''}`,
+      score: /今天|今日|当天/.test(query) ? 100 - index : retrievalScore(query, item.title, `${item.summary} ${item.pm_insight} ${item.tags.join(' ')}`),
+      created_at: item.created_at,
+    })).sort((a, b) => b.score - a.score).slice(0, 5))
+  } else if (intent === 'knowledge_query') {
+    const knowledgeCandidates = state.knowledgeDocuments.map((document) => ({
+      id: document.id,
+      title: document.title,
+      source_type: document.source_type,
+      content: document.content,
+      score: retrievalScore(query, document.title, document.content),
+      created_at: document.created_at,
+    }))
+    candidates.push(...knowledgeCandidates.filter((item) => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 5))
+  }
+
+  const evidence = candidates.filter((item) => item.content.trim()).slice(0, 5)
+  const sources = evidence.map((item, index) => ({
+    source_id: item.id,
+    title: item.title,
+    source_type: item.source_type,
+    route: 'knowledge' as const,
+    rank: index + 1,
+    score: Math.max(0.5, Math.min(0.99, item.score / 100 || 0.5)),
+    snippet: item.content.slice(0, 180),
+  }))
+
+  let fallbackAnswer = buildDemoAnswer(query)
+  if (intent === 'daily_question' && evidence[0]) {
+    fallbackAnswer = `今天的产品思维练习是《${currentQuestion.title}》。\n\n题目背景：${currentQuestion.background}\n\n考察能力：${currentQuestion.ability_tags.join('、')}。\n\n建议作答结构：\n${currentQuestion.suggested_structure.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
+  } else if (intent === 'practice_review' && evidence[0]) {
+    fallbackAnswer = `${evidence[0].title}\n\n${evidence[0].content}`
+  } else if (intent === 'radar_query' && evidence.length) {
+    fallbackAnswer = `当前热点池检索到 ${evidence.length} 条相关内容：\n\n${evidence.map((item, index) => `${index + 1}. ${item.title}\n${item.content.split('\n').slice(0, 2).join('\n')}`).join('\n\n')}`
+  } else if (intent === 'knowledge_query') {
+    fallbackAnswer = evidence.length
+      ? `从当前资料库检索到以下依据：\n\n${evidence.map((item, index) => `${index + 1}. ${item.title}\n${item.content.slice(0, 360)}`).join('\n\n')}`
+      : '当前资料库没有检索到能可靠回答这个问题的内容。你可以补充资料，或换一种更具体的问法。'
+  }
+
+  return {
+    intent,
+    query,
+    fallback_answer: fallbackAnswer,
+    sources,
+    evidence,
+    trace: [
+      { step: 'intent_route', status: 'succeeded', detail: `识别为 ${intent}` },
+      { step: 'data_retrieval', status: 'succeeded', detail: `从当前平台数据中命中 ${evidence.length} 条` },
+      { step: 'answer_generation', status: 'fallback', detail: '优先交给大模型生成；不可用时依据命中数据兜底' },
+    ],
+  }
+}
+
 function buildDemoAnswer(query: string) {
   const growth = readGrowthState()
   const todayQuestion = rotateByToday(growth.questions)[0]
@@ -1188,24 +1323,37 @@ function buildChatSources(query: string) {
   return []
 }
 
-export function demoSaveRealChatExchange(sessionId: string, query: string, answer: string) {
+export function demoSaveRealChatExchange(
+  sessionId: string,
+  query: string,
+  answer: string,
+  metadata?: ChatMessage['metadata'],
+) {
   const state = readState()
   const now = new Date().toISOString()
   const session = state.chatSessions.find((item) => item.id === sessionId)
   if (session?.title === '新对话') session.title = query.slice(0, 18)
   state.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'user', content: query, created_at: now })
-  state.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'assistant', content: answer, metadata: { sources: buildChatSources(query) }, created_at: new Date().toISOString() })
+  state.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'assistant', content: answer, metadata: metadata ?? { sources: buildChatSources(query) }, created_at: new Date().toISOString() })
   writeState(state)
 }
 
-export async function* demoStreamChat(sessionId: string, query: string): AsyncGenerator<{ type: string; content?: string; message?: string }> {
-  const state = readState()
-  const now = new Date().toISOString()
-  const session = state.chatSessions.find((item) => item.id === sessionId)
-  if (session?.title === '新对话') session.title = query.slice(0, 18)
-  state.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'user', content: query, created_at: now })
-  writeState(state)
-  const answer = buildDemoAnswer(query)
+export async function* demoStreamChat(
+  sessionId: string,
+  query: string,
+  persist = true,
+  answerOverride?: string,
+): AsyncGenerator<{ type: string; content?: string; message?: string }> {
+  yield { type: 'generation', message: 'data_fallback' }
+  if (persist) {
+    const state = readState()
+    const now = new Date().toISOString()
+    const session = state.chatSessions.find((item) => item.id === sessionId)
+    if (session?.title === '新对话') session.title = query.slice(0, 18)
+    state.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'user', content: query, created_at: now })
+    writeState(state)
+  }
+  const answer = answerOverride || buildDemoAnswer(query)
   const chunks = answer.match(/.{1,8}/g) || [answer]
   let full = ''
   for (const chunk of chunks) {
@@ -1213,9 +1361,11 @@ export async function* demoStreamChat(sessionId: string, query: string): AsyncGe
     full += chunk
     yield { type: 'token', content: chunk }
   }
-  const finalState = readState()
-  finalState.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'assistant', content: full, metadata: { sources: buildChatSources(query) }, created_at: new Date().toISOString() })
-  writeState(finalState)
+  if (persist) {
+    const finalState = readState()
+    finalState.chatMessages.push({ id: `message-${crypto.randomUUID()}`, session_id: sessionId, role: 'assistant', content: full, metadata: { sources: buildChatSources(query) }, created_at: new Date().toISOString() })
+    writeState(finalState)
+  }
   yield { type: 'done' }
 }
 

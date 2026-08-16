@@ -39,3 +39,4 @@ frontend/.playwright-cli/
 !SUBMISSION_CHECKLIST.md
 !TEST_CASES.md
 docs/
+.vercel

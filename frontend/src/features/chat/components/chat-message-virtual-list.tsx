@@ -48,9 +48,29 @@ const SOURCE_META: Record<
     accent: 'border-l-sky-500',
   },
   uploaded_doc: {
-    label: '研究资料',
+    label: '知识资料',
     icon: BookOpenText,
     accent: 'border-l-amber-500',
+  },
+  radar_item: {
+    label: 'AI 热点',
+    icon: BookOpenText,
+    accent: 'border-l-rose-400',
+  },
+  practice_record: {
+    label: '练习复盘',
+    icon: NotebookText,
+    accent: 'border-l-pink-400',
+  },
+  reference_answer: {
+    label: '参考答案',
+    icon: NotebookText,
+    accent: 'border-l-fuchsia-400',
+  },
+  daily_question: {
+    label: '今日练习',
+    icon: NotebookText,
+    accent: 'border-l-orange-300',
   },
 }
 
@@ -62,6 +82,9 @@ function getSourceHref(source: EvidenceSource) {
     return `/summaries/${source.source_id}`
   }
   if (source.source_type === 'uploaded_doc') return '/knowledge'
+  if (source.source_type === 'radar_item') return '/radar'
+  if (source.source_type === 'practice_record' || source.source_type === 'daily_question') return '/practices'
+  if (source.source_type === 'reference_answer') return '/knowledge'
   return null
 }
 
@@ -221,6 +244,22 @@ function ChatMessageVirtualListBase({
                         </div>
                       </div>
                     )}
+
+                  {message?.metadata?.trace && message.metadata.trace.length > 0 && (
+                    <details className="mt-2 w-full max-w-[85%] rounded-md border bg-background/70 px-3 py-2 text-xs">
+                      <summary className="cursor-pointer font-medium text-muted-foreground">
+                        {message.metadata.generation_mode === 'model' ? '模型生成 · 查看执行过程' : '数据兜底 · 查看执行过程'}
+                      </summary>
+                      <div className="mt-2 space-y-1.5">
+                        {message.metadata.trace.map((item, index) => (
+                          <div key={`${item.step}-${index}`} className="flex gap-2 text-muted-foreground">
+                            <span className="font-medium text-foreground">{index + 1}.</span>
+                            <span>{item.detail}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
 
                   {/* 朗读按钮（仅 assistant 消息） */}
                   {!isUser && !isStreamingItem && onSpeak && content && (

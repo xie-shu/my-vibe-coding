@@ -29,48 +29,16 @@ import { ChatMessageVirtualList } from '../components/chat-message-virtual-list'
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition'
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis'
 import type { ChatMessage } from '@/types'
-import { IS_DEMO_MODE, demoSaveRealChatExchange } from '@/lib/demo-data'
+import {
+  IS_DEMO_MODE,
+  demoRetrieveChatEvidence,
+  demoSaveRealChatExchange,
+} from '@/lib/demo-data'
 import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/lib/constants'
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
 const CHAT_MODEL_MODE = import.meta.env.VITE_CHAT_MODEL_MODE || 'real'
-
-const buildDemoSourcesForQuery = (query: string): NonNullable<ChatMessage['metadata']>['sources'] | undefined => {
-  if (/GitHub|趋势|前沿|资讯|动态|雷达|热点|开源|产品更新/.test(query)) {
-    return [
-      { source_id: 'knowledge-radar-github-openai-cookbook', title: 'OpenAI Cookbook：RAG 与评估案例', source_type: 'radar_item', route: 'knowledge', rank: 1, score: 0.95 },
-      { source_id: 'knowledge-radar-github-langgraph', title: 'LangGraph：Agent 工作流', source_type: 'radar_item', route: 'knowledge', rank: 2, score: 0.91 },
-    ]
-  }
-  if (/RAG|知识库|为什么.*大模型|直接问/.test(query)) {
-    return [
-      { source_id: 'knowledge-rag-prd', title: 'RAG 产品化价值说明', source_type: 'uploaded_doc', route: 'knowledge', rank: 1, score: 0.97 },
-      { source_id: 'knowledge-radar-github-llamaindex', title: 'LlamaIndex：知识库问答资料治理', source_type: 'radar_item', route: 'knowledge', rank: 2, score: 0.9 },
-    ]
-  }
-  if (/今天|今日|题目|考察|练习|上次|最近.*回答|哪里不好|薄弱|复盘|得分/.test(query)) {
-    return [
-      { source_id: 'knowledge-practice-ai-pm-onboarding', title: '练习复盘：AI 面试助手 MVP 如何设计', source_type: 'practice_record', route: 'knowledge', rank: 1, score: 0.9 },
-    ]
-  }
-  return undefined
-}
-
-const buildGrowthContext = () => {
-  const growthState =
-    localStorage.getItem('growth-workbench-demo-state-v10-daily-focus') ||
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith('growth-workbench-demo-state-'))
-      .sort()
-      .map((key) => localStorage.getItem(key))
-      .find(Boolean)
-  return [
-    '当前产品是 AI 成长舱：面向 AI 产品经理求职与日常成长的个人工作台。',
-    '核心功能包括：每日产品思维训练、语音/文字作答、AI 点评、AI 产品雷达、个人知识库、练习复盘库、成长问答。',
-    growthState ? `本地训练题、练习记录与 AI 雷达示例 JSON：${growthState.slice(0, 6000)}` : '',
-  ].filter(Boolean).join('\n\n')
-}
 
 export default function ChatPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -173,21 +141,48 @@ export default function ChatPage() {
     setInput('')
     setImages([])
 
+    const retrieval = IS_DEMO_MODE
+      ? await demoRetrieveChatEvidence(query)
+      : undefined
+    const context = retrieval
+      ? JSON.stringify({
+          product: 'AI 成长舱：面向 AI 产品经理求职与日常成长的个人工作台',
+          retrieval,
+        })
+      : undefined
+
     await stream(
       currentSessionId,
       query,
-      (fullContent) => {
-        const demoSources = IS_DEMO_MODE ? buildDemoSourcesForQuery(query) : undefined
+      (fullContent, generationMode) => {
+        const fallbackUsed = generationMode === 'data_fallback'
+        const metadata: ChatMessage['metadata'] | undefined = retrieval
+          ? {
+              sources: retrieval.sources,
+              generation_mode: fallbackUsed ? 'data_fallback' : 'model',
+              trace: retrieval.trace.map((item) =>
+                item.step === 'answer_generation'
+                  ? {
+                      ...item,
+                      status: fallbackUsed ? 'fallback' : 'succeeded',
+                      detail: fallbackUsed
+                        ? '文字模型不可用，已根据命中数据生成兜底回答'
+                        : '文字模型已结合检索证据生成回答',
+                    }
+                  : item,
+              ),
+            }
+          : undefined
         const assistantMsg: ChatMessage = {
           id: `assistant-${crypto.randomUUID()}`,
           session_id: currentSessionId,
           role: 'assistant',
           content: fullContent,
-          metadata: demoSources?.length ? { sources: demoSources } : undefined,
+          metadata,
           created_at: new Date().toISOString(),
         }
         if (IS_DEMO_MODE && CHAT_MODEL_MODE === 'real') {
-          demoSaveRealChatExchange(currentSessionId, query, fullContent)
+          demoSaveRealChatExchange(currentSessionId, query, fullContent, metadata)
         }
         setLocalMessages((prev) => [...prev, assistantMsg])
         queryClient.invalidateQueries({ queryKey: ['chat-sessions'] })
@@ -215,7 +210,7 @@ export default function ChatPage() {
         })
       },
       history,
-      buildGrowthContext(),
+      context,
     )
   }
 
@@ -262,7 +257,7 @@ export default function ChatPage() {
         <div className="mb-2 flex items-center justify-between px-1">
           <span className="text-xs font-medium text-muted-foreground">历史会话</span>
           <Badge variant="secondary" className="text-[11px]">
-            {CHAT_MODEL_MODE === 'real' ? 'GPT 实时' : IS_DEMO_MODE ? 'Demo 模拟' : 'GPT-5.4 Mini'}
+            {CHAT_MODEL_MODE === 'real' ? '模型优先 · 数据兜底' : IS_DEMO_MODE ? '本地数据问答' : '大模型问答'}
           </Badge>
         </div>
 

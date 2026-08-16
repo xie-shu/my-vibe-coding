@@ -62,7 +62,7 @@ export function useStreamChat() {
     async (
       sessionId: string,
       query: string,
-      onDone?: (fullContent: string) => void,
+      onDone?: (fullContent: string, generationMode: 'model' | 'data_fallback') => void,
       onError?: (err: string) => void,
       images?: string[],
       onSources?: (sources: NonNullable<ChatMessage['metadata']>['sources']) => void,
@@ -74,12 +74,15 @@ export function useStreamChat() {
 
       try {
         let full = ''
+        let generationMode: 'model' | 'data_fallback' = 'model'
         for await (const event of streamChat(sessionId, query, images, history, context)) {
           if (event.type === 'token' && event.content) {
             full += event.content
             setStreamingContent(full)
+          } else if (event.type === 'generation' && event.message === 'data_fallback') {
+            generationMode = 'data_fallback'
           } else if (event.type === 'done') {
-            onDone?.(full)
+            onDone?.(full, generationMode)
             if (event.sources) onSources?.(event.sources)
           } else if (event.type === 'error') {
             onError?.(event.message || '未知错误')

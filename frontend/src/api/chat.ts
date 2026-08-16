@@ -52,24 +52,54 @@ export async function* streamChat(
   images?: string[],
   history?: Pick<ChatMessage, 'role' | 'content'>[],
   context?: string,
-): AsyncGenerator<{ type: string; content?: string; message?: string; sources?: NonNullable<ChatMessage['metadata']>['sources'] }> {
+): AsyncGenerator<{
+  type: string
+  content?: string
+  message?: string
+  generation_mode?: 'model' | 'data_fallback'
+  sources?: NonNullable<ChatMessage['metadata']>['sources']
+}> {
+  let fallbackAnswer: string | undefined
+  if (context) {
+    try {
+      const parsed = JSON.parse(context) as { retrieval?: { fallback_answer?: unknown } }
+      if (typeof parsed.retrieval?.fallback_answer === 'string') {
+        fallbackAnswer = parsed.retrieval.fallback_answer
+      }
+    } catch {
+      // Non-JSON context is valid for non-demo backends.
+    }
+  }
   if (IS_DEMO_MODE && CHAT_MODEL_MODE !== 'real') {
-    yield* demoStreamChat(sessionId, query)
+    yield* demoStreamChat(sessionId, query, true, fallbackAnswer)
     return
   }
   const url = IS_DEMO_MODE && CHAT_MODEL_MODE === 'real'
     ? `${API_BASE_URL}/chat/direct-stream`
     : `${API_BASE_URL}/chat/sessions/${sessionId}/stream`
-  const response = await fetch(
-    url,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, images, history, context }),
-    },
-  )
+  let response: Response
+  try {
+    response = await fetch(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, images, history, context }),
+      },
+    )
+  } catch (error) {
+    if (IS_DEMO_MODE && CHAT_MODEL_MODE === 'real') {
+      yield* demoStreamChat(sessionId, query, false, fallbackAnswer)
+      return
+    }
+    throw error
+  }
 
   if (!response.ok) {
+    if (IS_DEMO_MODE && CHAT_MODEL_MODE === 'real') {
+      yield* demoStreamChat(sessionId, query, false, fallbackAnswer)
+      return
+    }
     throw new Error(`请求失败: ${response.status}`)
   }
 
@@ -78,6 +108,7 @@ export async function* streamChat(
 
   const decoder = new TextDecoder()
   let buffer = ''
+  let receivedContent = false
 
   while (true) {
     const { done, value } = await reader.read()
@@ -94,7 +125,18 @@ export async function* streamChat(
         const data = line.slice(6).trim()
         if (data) {
           try {
-            yield JSON.parse(data)
+            const event = JSON.parse(data) as {
+              type: string
+              content?: string
+              message?: string
+              generation_mode?: 'model' | 'data_fallback'
+            }
+            if (event.type === 'token' && event.content) receivedContent = true
+            if (event.type === 'error' && IS_DEMO_MODE && CHAT_MODEL_MODE === 'real' && !receivedContent) {
+              yield* demoStreamChat(sessionId, query, false, fallbackAnswer)
+              return
+            }
+            yield event
           } catch {
             // 忽略解析错误
           }
