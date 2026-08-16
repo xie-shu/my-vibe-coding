@@ -42,6 +42,15 @@ interface GrowthState {
   radarItems: RadarItem[]
 }
 
+interface GeneratedGrowthData {
+  generated_at: string
+  date_key: string
+  source: 'github+llm' | 'github+template'
+  question: DailyQuestion
+  questions?: DailyQuestion[]
+  radar_items: RadarItem[]
+}
+
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 const pause = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -61,6 +70,30 @@ const rotateByToday = <T>(items: T[], offset = 0): T[] => {
   if (items.length <= 1) return [...items]
   const start = (dayKey() + offset) % items.length
   return [...items.slice(start), ...items.slice(0, start)]
+}
+
+let generatedGrowthCache: GeneratedGrowthData | null | undefined
+
+async function loadGeneratedGrowthData(): Promise<GeneratedGrowthData | null> {
+  if (generatedGrowthCache !== undefined) return generatedGrowthCache
+  try {
+    const base = import.meta.env.BASE_URL || '/'
+    const response = await fetch(`${base}daily-growth.json?date=${dayKey()}`, { cache: 'no-store' })
+    if (!response.ok) {
+      generatedGrowthCache = null
+      return null
+    }
+    const data = (await response.json()) as GeneratedGrowthData
+    if (!data?.question || !Array.isArray(data.radar_items)) {
+      generatedGrowthCache = null
+      return null
+    }
+    generatedGrowthCache = data
+    return data
+  } catch {
+    generatedGrowthCache = null
+    return null
+  }
 }
 
 const normalizeText = (text: string) =>
@@ -868,9 +901,10 @@ export async function demoDeleteKnowledgeDocument(id: string) {
 
 export async function demoGetGrowthToday(): Promise<GrowthToday> {
   await pause()
+  const generated = await loadGeneratedGrowthData()
   const growth = readGrowthState()
-  const question = rotateByToday(growth.questions)[0]
-  const todayRadar = rotateByToday(growth.radarItems, 7)
+  const question = generated?.question ?? rotateByToday(growth.questions)[0]
+  const todayRadar = generated?.radar_items ?? rotateByToday(growth.radarItems, 7)
   const practices = growth.practices
   const average = practices.length ? Math.round(practices.reduce((sum, item) => sum + item.score, 0) / practices.length) : 0
   return clone({
@@ -888,11 +922,20 @@ export async function demoGetGrowthToday(): Promise<GrowthToday> {
 
 export async function demoListDailyQuestions() {
   await pause()
+  const generated = await loadGeneratedGrowthData()
+  if (generated) {
+    const generatedQuestions = generated.questions?.length ? generated.questions : [generated.question]
+    return clone([...generatedQuestions, ...rotateByToday(readGrowthState().questions)])
+  }
   return clone(rotateByToday(readGrowthState().questions))
 }
 
 export async function demoGetDailyQuestion(id: string) {
   await pause()
+  const generated = await loadGeneratedGrowthData()
+  const generatedQuestions = generated ? (generated.questions?.length ? generated.questions : [generated.question]) : []
+  const generatedQuestion = generatedQuestions.find((item) => item.id === id)
+  if (generatedQuestion) return clone(generatedQuestion)
   const question = readGrowthState().questions.find((item) => item.id === id)
   if (!question) throw new Error('题目不存在')
   return clone(question)
@@ -909,9 +952,11 @@ export async function demoTranscribePracticeAudio(_questionId: string, _file: Fi
 
 export async function demoSubmitPracticeAnswer(questionId: string, data: { answer_text: string; transcript_text?: string; audio_url?: string }) {
   await pause(900)
+  const generated = await loadGeneratedGrowthData()
   const growth = readGrowthState()
   const state = readState()
-  const question = growth.questions.find((item) => item.id === questionId)
+  const generatedQuestions = generated ? (generated.questions?.length ? generated.questions : [generated.question]) : []
+  const question = generatedQuestions.find((item) => item.id === questionId) || growth.questions.find((item) => item.id === questionId)
   if (!question) throw new Error('题目不存在')
   const text = data.transcript_text || data.answer_text
   const scored = scorePracticeAnswer(question, text)
@@ -958,7 +1003,8 @@ export async function demoSubmitPracticeAnswer(questionId: string, data: { answe
     created_at: new Date().toISOString(),
   }
   growth.practices.unshift(practice)
-  question.status = 'answered'
+  const storedQuestion = growth.questions.find((item) => item.id === questionId)
+  if (storedQuestion) storedQuestion.status = 'answered'
   writeGrowthState(growth)
   state.knowledgeDocuments.unshift({
     id: `knowledge-${practice.id}`,
@@ -987,16 +1033,18 @@ export async function demoGetPracticeAnswer(id: string) {
 
 export async function demoListRadarItems(tag?: string) {
   await pause()
-  const items = rotateByToday(readGrowthState().radarItems, 7)
+  const generated = await loadGeneratedGrowthData()
+  const items = generated?.radar_items ?? rotateByToday(readGrowthState().radarItems, 7)
   if (!tag || tag === '全部') return clone(items)
   return clone(items.filter((item) => item.tags.includes(tag)))
 }
 
 export async function demoSaveRadarItemToKnowledge(id: string) {
   await pause()
+  const generated = await loadGeneratedGrowthData()
   const growth = readGrowthState()
   const state = readState()
-  const item = growth.radarItems.find((entry) => entry.id === id)
+  const item = generated?.radar_items.find((entry) => entry.id === id) || growth.radarItems.find((entry) => entry.id === id)
   if (!item) throw new Error('热点不存在')
   item.saved_to_knowledge = true
   writeGrowthState(growth)
@@ -1049,6 +1097,9 @@ function buildDemoAnswer(query: string) {
   if (/^(你好|您好|hello|hi|哈喽|在吗)[！!。.\s]*$/i.test(query.trim())) {
     return '你好呀，我是 AI 成长舱里的产品思维学习助手。你可以问我今天的练习题、上次练习哪里需要改进、AI 产品趋势、RAG/Agent 怎么讲，或者让我帮你整理一段面试表达。'
   }
+  if (/(你会做什么|你能做什么|可以做什么|有什么功能|功能有哪些|怎么用|你是谁|介绍一下你自己)/.test(query)) {
+    return `我是 AI 成长舱里的产品思维学习助手，主要帮你做 AI 产品经理求职和日常成长训练。\n\n我能做这些事：\n\n1. 解释今天的产品思维练习题，告诉你考察什么能力、怎么组织回答。\n2. 根据你的练习记录，指出回答里的优点、不足和改进方向。\n3. 总结 AI 产品、RAG、Agent、多模态等方向的学习资料和面试表达。\n4. 基于个人知识库和练习复盘回答问题，帮你把资料转成可讲出来的话术。\n5. 对普通产品经理基础问题直接回答；如果问题需要天气、股价、实时新闻等外部工具，我会先判断是否能查询，不能查询就明确兜底，不会乱编。`
+  }
   if (/(天气|气温|下雨|降雨|空气质量|台风|温度|几度|穿什么|实时天气|今天天气|明天天气)/.test(query)) {
     return '这个问题我现在不能直接回答。当前问答助手没有接入天气查询工具，也没有可检索的实时天气知识库，所以不能判断今天的天气。你可以换成问我“今天的产品思维练习是什么”或“最近 AI 产品趋势有哪些”。'
   }
@@ -1085,7 +1136,7 @@ function buildDemoAnswer(query: string) {
 function buildChatSources(query: string) {
   if (
     /^(你好|您好|hello|hi|哈喽|在吗)[！!。.\s]*$/i.test(query.trim()) ||
-    /(天气|气温|下雨|降雨|空气质量|台风|温度|几度|穿什么|实时天气|今天天气|明天天气|股票|股价|汇率|航班|火车票|高铁票|实时新闻|彩票|油价|限行)/.test(query)
+    /(你会做什么|你能做什么|可以做什么|有什么功能|功能有哪些|怎么用|你是谁|介绍一下你自己|天气|气温|下雨|降雨|空气质量|台风|温度|几度|穿什么|实时天气|今天天气|明天天气|股票|股价|汇率|航班|火车票|高铁票|实时新闻|彩票|油价|限行)/.test(query)
   ) {
     return []
   }

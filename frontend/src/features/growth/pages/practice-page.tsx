@@ -1,57 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Mic, PauseCircle, Send, Sparkles } from 'lucide-react'
+import { ArrowLeft, Loader2, Send, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDailyQuestion, useSubmitPracticeAnswer, useTranscribePracticeAudio } from '../hooks/use-growth'
+import { useDailyQuestion, useSubmitPracticeAnswer } from '../hooks/use-growth'
 
 export default function PracticePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: question, isLoading } = useDailyQuestion(id)
-  const transcribe = useTranscribePracticeAudio()
   const submit = useSubmitPracticeAnswer()
   const [answerText, setAnswerText] = useState('')
-  const [recording, setRecording] = useState(false)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-
-  useEffect(() => () => {
-    recorderRef.current?.stream.getTracks().forEach((track) => track.stop())
-  }, [])
-
-  const startRecording = async () => {
-    if (!question) return
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      chunksRef.current = []
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data)
-      }
-      recorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const file = new File([blob], `${question.id}.webm`, { type: 'audio/webm' })
-        const result = await transcribe.mutateAsync({ questionId: question.id, file })
-        setAnswerText(result.transcript_text)
-        stream.getTracks().forEach((track) => track.stop())
-      }
-      recorderRef.current = recorder
-      recorder.start()
-      setRecording(true)
-    } catch {
-      alert('无法访问麦克风。你也可以直接在文本框输入答案。')
-    }
-  }
-
-  const stopRecording = () => {
-    recorderRef.current?.stop()
-    setRecording(false)
-  }
 
   const handleSubmit = async () => {
     if (!question || !answerText.trim()) return
@@ -104,25 +67,14 @@ export default function PracticePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">我的回答</h2>
-                <p className="mt-1 text-xs text-muted-foreground">可以语音回答，转写后支持手动修正。</p>
+                <p className="mt-1 text-xs text-muted-foreground">当前版本先支持文字作答，提交后生成 AI 点评和参考答案。</p>
               </div>
-              {recording ? (
-                <Button variant="destructive" onClick={stopRecording}><PauseCircle className="h-4 w-4" />结束回答</Button>
-              ) : (
-                <Button variant="outline" onClick={startRecording} disabled={transcribe.isPending}><Mic className="h-4 w-4" />开始录音</Button>
-              )}
             </div>
-
-            {transcribe.isPending && (
-              <div className="glass-card flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> 正在转写语音，完成后可编辑文本
-              </div>
-            )}
 
             <Textarea
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
-              placeholder="也可以直接输入你的回答：我会先从目标用户和核心痛点说起..."
+              placeholder="请输入你的回答：我会先从目标用户和核心痛点说起..."
               className="min-h-64 resize-y"
             />
 

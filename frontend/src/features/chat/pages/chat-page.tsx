@@ -36,6 +36,27 @@ import { QUERY_KEYS } from '@/lib/constants'
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
 const CHAT_MODEL_MODE = import.meta.env.VITE_CHAT_MODEL_MODE || 'real'
 
+const buildDemoSourcesForQuery = (query: string): NonNullable<ChatMessage['metadata']>['sources'] | undefined => {
+  if (/GitHub|趋势|前沿|资讯|动态|雷达|热点|开源|产品更新/.test(query)) {
+    return [
+      { source_id: 'knowledge-radar-github-openai-cookbook', title: 'OpenAI Cookbook：RAG 与评估案例', source_type: 'radar_item', route: 'knowledge', rank: 1, score: 0.95 },
+      { source_id: 'knowledge-radar-github-langgraph', title: 'LangGraph：Agent 工作流', source_type: 'radar_item', route: 'knowledge', rank: 2, score: 0.91 },
+    ]
+  }
+  if (/RAG|知识库|为什么.*大模型|直接问/.test(query)) {
+    return [
+      { source_id: 'knowledge-rag-prd', title: 'RAG 产品化价值说明', source_type: 'uploaded_doc', route: 'knowledge', rank: 1, score: 0.97 },
+      { source_id: 'knowledge-radar-github-llamaindex', title: 'LlamaIndex：知识库问答资料治理', source_type: 'radar_item', route: 'knowledge', rank: 2, score: 0.9 },
+    ]
+  }
+  if (/今天|今日|题目|考察|练习|上次|最近.*回答|哪里不好|薄弱|复盘|得分/.test(query)) {
+    return [
+      { source_id: 'knowledge-practice-ai-pm-onboarding', title: '练习复盘：AI 面试助手 MVP 如何设计', source_type: 'practice_record', route: 'knowledge', rank: 1, score: 0.9 },
+    ]
+  }
+  return undefined
+}
+
 const buildGrowthContext = () => {
   const growthState =
     localStorage.getItem('growth-workbench-demo-state-v10-daily-focus') ||
@@ -156,19 +177,13 @@ export default function ChatPage() {
       currentSessionId,
       query,
       (fullContent) => {
+        const demoSources = IS_DEMO_MODE ? buildDemoSourcesForQuery(query) : undefined
         const assistantMsg: ChatMessage = {
           id: `assistant-${crypto.randomUUID()}`,
           session_id: currentSessionId,
           role: 'assistant',
           content: fullContent,
-          metadata: IS_DEMO_MODE
-            ? {
-                sources: [
-                  { source_id: 'knowledge-ai-pm-method', title: 'AI 产品经理面试表达框架', source_type: 'uploaded_doc', route: 'knowledge', rank: 1, score: 0.94 },
-                  { source_id: 'knowledge-rag-prd', title: 'RAG 产品化价值说明', source_type: 'uploaded_doc', route: 'knowledge', rank: 2, score: 0.9 },
-                ],
-              }
-            : undefined,
+          metadata: demoSources?.length ? { sources: demoSources } : undefined,
           created_at: new Date().toISOString(),
         }
         if (IS_DEMO_MODE && CHAT_MODEL_MODE === 'real') {

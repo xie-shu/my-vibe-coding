@@ -15,6 +15,7 @@ build/
 # Node
 node_modules/
 frontend/dist/
+frontend/public/daily-growth.json
 
 # 上传的音频文件
 backend/uploads/

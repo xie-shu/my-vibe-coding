@@ -3,6 +3,9 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    # 每天北京时间 08:30 自动抓取 GitHub 资料并重新部署
+    - cron: "30 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +34,14 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Generate daily AI PM growth data
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+        run: node scripts/generate-daily-growth-data.mjs
 
       - name: Build static demo
         working-directory: frontend
